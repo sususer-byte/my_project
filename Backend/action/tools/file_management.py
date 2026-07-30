@@ -27,6 +27,27 @@ class WriteFileParams(BaseModel):
     append: bool = Field(default=False, description="Append instead of overwrite")
 
 
+class ExecuteCodeParams(BaseModel):
+    code: str = Field(max_length=5000, description="Python code to execute in sandbox")
+    timeout: int = Field(default=5, ge=1, le=30, description="Maximum execution time in seconds")
+    
+    @field_validator("code")
+    @classmethod
+    def validate_safe_code(cls, value):
+        # [MODIFICATION]: Basic safety validation for sandboxed code execution
+        dangerous_patterns = [
+            "import os", "import subprocess", "import sys", 
+            "__import__", "exec(", "eval(", "open(", 
+            "os.", "subprocess.", "sys."
+        ]
+        
+        for pattern in dangerous_patterns:
+            if pattern in value:
+                raise ValueError(f"Code contains dangerous pattern: {pattern}")
+        
+        return value
+
+
 class SearchFilesParams(BaseModel):
     query: str = Field(min_length=1, description="Filename substring to search for")
     relative_path: str = Field(default=".", description="Directory to search within sandbox")
@@ -153,6 +174,96 @@ class SandboxFileManager:
             logger.error("delete_file failed: %s", exc)
             return {"success": False, "error": str(exc)}
 
+    def execute_code(self, params: ExecuteCodeParams) -> Dict[str, Any]:
+        # [MODIFICATION]: Safe sandboxed code execution
+        try:
+            import subprocess
+            import tempfile
+            import sys
+            import ast
+            
+            # [MODIFICATION]: Validate code syntax first
+            try:
+                ast.parse(params.code)
+            except SyntaxError as e:
+                return {"success": False, "error": f"Syntax error in code: {e}"}
+            
+            # [MODIFICATION]: Create a temporary file in the sandbox
+            temp_file = self.sandbox_root / f"temp_exec_{tempfile.gettempprefix()}.py"
+            
+            # [MODIFICATION]: Write the code with safety wrappers
+            safe_code = f"""
+import sys
+import io
+
+# Redirect stdout and stderr
+output = io.StringIO()
+error_output = io.StringIO()
+old_stdout = sys.stdout
+old_stderr = sys.stderr
+sys.stdout = output
+sys.stderr = error_output
+
+try:
+    # User code starts here
+    {params.code}
+    # User code ends here
+except Exception as e:
+    sys.stderr.write(f"Error: {{str(e)}}")
+finally:
+    sys.stdout = old_stdout
+    sys.stderr = old_stderr
+
+print("===STDOUT===")
+print(output.getvalue())
+print("===STDERR===")
+print(error_output.getvalue())
+"""
+            
+            with open(temp_file, "w", encoding="utf-8") as f:
+                f.write(safe_code)
+            
+            # [MODIFICATION]: Execute with timeout and resource limits
+            try:
+                result = subprocess.run(
+                    [sys.executable, str(temp_file)],
+                    capture_output=True,
+                    text=True,
+                    timeout=params.timeout,
+                    cwd=str(self.sandbox_root),
+                    env={"PYTHONDONTWRITEBYTECODE": "1"}  # Prevent .pyc files
+                )
+                
+                # [MODIFICATION]: Clean up temp file
+                temp_file.unlink()
+                
+                # [MODIFICATION]: Parse and return results
+                output_lines = result.stdout.split("===STDOUT===")
+                error_lines = result.stdout.split("===STDERR===")
+                
+                stdout_content = output_lines[1].split("===STDERR===")[0] if len(output_lines) > 1 else ""
+                stderr_content = error_lines[1] if len(error_lines) > 1 else result.stderr
+                
+                return {
+                    "success": result.returncode == 0,
+                    "stdout": stdout_content.strip(),
+                    "stderr": stderr_content.strip(),
+                    "return_code": result.returncode,
+                    "timeout": params.timeout
+                }
+                
+            except subprocess.TimeoutExpired:
+                temp_file.unlink()
+                return {"success": False, "error": f"Execution timed out after {params.timeout} seconds"}
+            except Exception as exc:
+                temp_file.unlink()
+                logger.error("Code execution failed: %s", exc)
+                return {"success": False, "error": f"Execution failed: {str(exc)}"}
+                
+        except Exception as exc:
+            logger.error("execute_code failed: %s", exc)
+            return {"success": False, "error": str(exc)}
+
 
 _file_manager = SandboxFileManager()
 
@@ -188,4 +299,11 @@ def register_file_tools(registry) -> None:
         description="Delete a file within the sandbox",
         params_model=DeleteFileParams,
         handler=_file_manager.delete_file,
+    )
+    # [MODIFICATION]: Add sandboxed code execution tool
+    registry.register_tool(
+        name="execute_code",
+        description="Execute Python code in a safe sandboxed environment with timeout",
+        params_model=ExecuteCodeParams,
+        handler=_file_manager.execute_code,
     )

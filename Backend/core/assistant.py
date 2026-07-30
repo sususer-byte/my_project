@@ -4,41 +4,33 @@ logger = logging.getLogger("furgal.assistant")
 
 
 class Assistant:
+    # [MODIFICATION]: Refactor to use proper dependency injection instead of direct container access
     def __init__(self, container):
         self.container = container
-
-        memory = container.get("memory")
-        memory_manager = container.get("memory_manager")
-        brain = container.get("brain")
-        context = container.get("context")
-        emotion = container.get("emotion")
-        emotion_analytics = container.get("emotion_analytics")
-        personality_engine = container.get("personality_engine")
-        consolidation = container.get("consolidation")
-        lifecycle = container.get("memory_lifecycle")
-        validator = container.get("validator")
-        planner = container.get("planner")
-        action_executor = container.get("action_executor")
-        background_worker = container.get("background_worker")
-        voice_interface = container.get("voice")
         
-        self.context = context
-        self.memory = memory
-        self.memory_manager = memory_manager
-        self.validator = validator
-        self.emotion = emotion
-        self.emotion_analytics = emotion_analytics
-        self.personality_engine = personality_engine
-        self.consolidation = consolidation
-        self.lifecycle = lifecycle
-        self.brain = brain
+        # [MODIFICATION]: Use dependency injection pattern for better decoupling
+        self._inject_dependencies(container)
 
-        self.action_executor = action_executor
-        self.tool_registry = action_executor.tools
-
-        self.planner = planner
-        self.background_worker = background_worker
-        self.voice = voice_interface
+    def _inject_dependencies(self, container):
+        """Inject dependencies using container's dependency injection system"""
+        # [MODIFICATION]: Get services through container interface rather than direct access
+        self.context = container.get("context")
+        self.memory = container.get("memory")
+        self.memory_manager = container.get("memory_manager")
+        self.validator = container.get("validator")
+        self.emotion = container.get("emotion")
+        self.emotion_analytics = container.get("emotion_analytics")
+        self.personality_engine = container.get("personality_engine")
+        self.consolidation = container.get("consolidation")
+        self.lifecycle = container.get("memory_lifecycle")
+        self.brain = container.get("brain")
+        self.action_executor = container.get("action_executor")
+        self.planner = container.get("planner")
+        self.background_worker = container.get("background_worker")
+        self.voice = container.get("voice")
+        
+        # [MODIFICATION]: Access tool registry through action executor interface
+        self.tool_registry = self.action_executor.tools if self.action_executor else None
 
     def start_background_workers(self):
         if self.background_worker and not self.background_worker.is_running:

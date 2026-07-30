@@ -78,46 +78,143 @@ class _StubLANConnector(LANConnector):
     #Placeholder LAN connector — to be implemented for Smart TV / IoT control.
 
     def connect(self, endpoint: NetworkEndpoint) -> Dict[str, Any]:
+        # [MODIFICATION]: Enhanced stub with better error messages and logging
         logger.info("LAN connect stub: %s:%d", endpoint.host, endpoint.port)
-        return {"success": False, "error": "LAN connector not yet implemented", "stub": True}
+        return {
+            "success": False, 
+            "error": "LAN connector not yet implemented", 
+            "stub": True,
+            "endpoint": {"host": endpoint.host, "port": endpoint.port}
+        }
 
     def disconnect(self) -> Dict[str, Any]:
-        return {"success": True, "stub": True}
+        # [MODIFICATION]: Better logging for disconnect
+        logger.info("LAN disconnect stub called")
+        return {"success": True, "stub": True, "message": "LAN disconnect simulated"}
 
     def send(self, payload: bytes) -> Dict[str, Any]:
-        return {"success": False, "error": "LAN send not yet implemented", "stub": True}
+        # [MODIFICATION]: Log payload size and simulate send
+        logger.info("LAN send stub: %d bytes", len(payload))
+        return {
+            "success": False, 
+            "error": "LAN send not yet implemented", 
+            "stub": True,
+            "payload_size": len(payload)
+        }
 
     def receive(self, timeout: float = 5.0) -> Dict[str, Any]:
-        return {"success": False, "error": "LAN receive not yet implemented", "stub": True}
+        # [MODIFICATION]: Simulate timeout behavior
+        logger.info("LAN receive stub with timeout: %.1f", timeout)
+        return {
+            "success": False, 
+            "error": "LAN receive not yet implemented", 
+            "stub": True,
+            "timeout": timeout
+        }
 
 
 class _StubBluetoothConnector(BluetoothConnector):
     #Placeholder Bluetooth connector.
 
     def scan_devices(self) -> Dict[str, Any]:
-        return {"success": False, "error": "Bluetooth scan not yet implemented", "stub": True}
+        # [MODIFICATION]: Enhanced stub with simulated device list
+        logger.info("Bluetooth scan stub called")
+        return {
+            "success": False, 
+            "error": "Bluetooth scan not yet implemented", 
+            "stub": True,
+            "simulated_devices": [
+                {"name": "Simulated Device 1", "address": "00:11:22:33:44:55"},
+                {"name": "Simulated Device 2", "address": "AA:BB:CC:DD:EE:FF"}
+            ]
+        }
 
     def pair(self, device_address: str) -> Dict[str, Any]:
-        return {"success": False, "error": "Bluetooth pairing not yet implemented", "stub": True}
+        # [MODIFICATION]: Validate device address format
+        logger.info("Bluetooth pair stub: %s", device_address)
+        if not self._validate_bluetooth_address(device_address):
+            return {"success": False, "error": "Invalid Bluetooth address format", "stub": True}
+        return {
+            "success": False, 
+            "error": "Bluetooth pairing not yet implemented", 
+            "stub": True,
+            "device_address": device_address
+        }
 
     def connect(self, device_address: str) -> Dict[str, Any]:
-        return {"success": False, "error": "Bluetooth connect not yet implemented", "stub": True}
+        # [MODIFICATION]: Validate and simulate connection
+        logger.info("Bluetooth connect stub: %s", device_address)
+        if not self._validate_bluetooth_address(device_address):
+            return {"success": False, "error": "Invalid Bluetooth address format", "stub": True}
+        return {
+            "success": False, 
+            "error": "Bluetooth connect not yet implemented", 
+            "stub": True,
+            "device_address": device_address
+        }
 
     def disconnect(self) -> Dict[str, Any]:
-        return {"success": True, "stub": True}
+        # [MODIFICATION]: Better logging for disconnect
+        logger.info("Bluetooth disconnect stub called")
+        return {"success": True, "stub": True, "message": "Bluetooth disconnect simulated"}
+
+    def _validate_bluetooth_address(self, address: str) -> bool:
+        # [MODIFICATION]: Basic Bluetooth address validation
+        if not address or not isinstance(address, str):
+            return False
+        # Simple pattern: XX:XX:XX:XX:XX:XX where X is hex digit
+        parts = address.split(':')
+        if len(parts) != 6:
+            return False
+        try:
+            for part in parts:
+                int(part, 16)
+            return True
+        except ValueError:
+            return False
 
 
 class _StubSocketConnector(SocketConnector):
     #Placeholder socket connector.
 
     def open_tcp(self, endpoint: NetworkEndpoint) -> Dict[str, Any]:
-        return {"success": False, "error": "TCP socket not yet implemented", "stub": True}
+        # [MODIFICATION]: Enhanced stub with endpoint validation
+        logger.info("TCP socket stub: %s:%d", endpoint.host, endpoint.port)
+        if not self._validate_endpoint(endpoint):
+            return {"success": False, "error": "Invalid endpoint", "stub": True}
+        return {
+            "success": False, 
+            "error": "TCP socket not yet implemented", 
+            "stub": True,
+            "endpoint": {"host": endpoint.host, "port": endpoint.port}
+        }
 
     def open_udp(self, endpoint: NetworkEndpoint) -> Dict[str, Any]:
-        return {"success": False, "error": "UDP socket not yet implemented", "stub": True}
+        # [MODIFICATION]: Enhanced stub with endpoint validation
+        logger.info("UDP socket stub: %s:%d", endpoint.host, endpoint.port)
+        if not self._validate_endpoint(endpoint):
+            return {"success": False, "error": "Invalid endpoint", "stub": True}
+        return {
+            "success": False, 
+            "error": "UDP socket not yet implemented", 
+            "stub": True,
+            "endpoint": {"host": endpoint.host, "port": endpoint.port}
+        }
 
     def close(self) -> Dict[str, Any]:
-        return {"success": True, "stub": True}
+        # [MODIFICATION]: Better logging for close
+        logger.info("Socket close stub called")
+        return {"success": True, "stub": True, "message": "Socket close simulated"}
+
+    def _validate_endpoint(self, endpoint: NetworkEndpoint) -> bool:
+        # [MODIFICATION]: Basic endpoint validation
+        if not endpoint or not endpoint.host or not isinstance(endpoint.host, str):
+            return False
+        if not endpoint.port or not isinstance(endpoint.port, int):
+            return False
+        if not (1 <= endpoint.port <= 65535):
+            return False
+        return True
 
 
 class NetworkConnectivityManager:

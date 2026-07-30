@@ -100,6 +100,45 @@ class MemoryManager:
                     return True
         return False
 
+    def _calculate_dynamic_relevance_score(self, memory, query):
+        # [MODIFICATION]: Dynamic relevance scoring algorithm
+        category = memory.get("category", "other")
+        importance = memory.get("importance", 0.5)
+        confidence = memory.get("confidence", 1.0)
+        access_count = memory.get("access_count", 0)
+        
+        # Base score based on category
+        category_weights = {
+            "identity": 0.9,
+            "goal": 0.85,
+            "interest": 0.75,
+            "preference": 0.7,
+            "skill": 0.65,
+            "project": 0.6,
+            "relationship": 0.55,
+            "other": 0.5
+        }
+        
+        base_score = category_weights.get(category, 0.5)
+        
+        # Adjust based on memory characteristics
+        score = (
+            base_score * 0.6 +  # Category importance
+            importance * 0.2 +   # Memory importance
+            confidence * 0.1 +   # Confidence in memory
+            min(access_count / 10, 0.1)  # Usage frequency (capped at 0.1)
+        )
+        
+        # Query-specific adjustments
+        query_lower = (query or "").lower()
+        memory_text = (memory.get("text", "") or "").lower()
+        
+        # Boost score if query contains key terms from memory
+        if memory_text and any(term in query_lower for term in memory_text.split()[:3]):
+            score = min(1.0, score + 0.1)
+            
+        return max(0.3, min(0.99, score))  # Clamp between 0.3 and 0.99
+
     def add_memory(self, text, category="unknown", importance=0.5, confidence=1.0):
         text = self._normalize_memory_text(text, category)
         if not text or not str(text).strip():
@@ -134,6 +173,7 @@ class MemoryManager:
         return memory
 
     def retrieve_memory(self, query):
+        # [FIX]: Replace hardcoded relevance scores with dynamic scoring algorithm
         results_by_id = {}
 
         with self.memory.lock:
@@ -143,7 +183,8 @@ class MemoryManager:
                     continue
                 if self._memory_matches_query_intent(query, memory):
                     stored = dict(memory)
-                    score = 0.95 if stored.get("category") == "identity" else 0.8
+                    # [MODIFICATION]: Dynamic relevance scoring based on memory characteristics
+                    score = self._calculate_dynamic_relevance_score(stored, query)
                     stored["last_used"] = datetime.now().isoformat()
                     stored["access_count"] = stored.get("access_count", 0) + 1
                     stored["last_score"] = round(score, 3)

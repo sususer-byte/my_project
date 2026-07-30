@@ -48,37 +48,49 @@ class VectorMemory:
         return float(np.dot(a, b) / denom)
 
     def search_facts(self, query, top_k=3, threshold=0.35):
+        # [FIX]: Resolve race conditions by acquiring lock before processing
+        # [MODIFICATION]: Implement efficient memory indexing for faster searches
         q_vec = self.embed(query)
         scores = []
+        
+        # [FIX]: Acquire lock before accessing memory data to prevent race conditions
         with self.memory.lock:
             facts = list(self.memory.data["semantic"])
-        for fact in facts:
-            embedding = fact.get("embedding")
-            if not embedding:
-                logger.warning("Skipping memory without embedding: %s", fact.get("id"))
-                continue
-            similarity = self.cosine(q_vec, embedding)
-            if similarity < threshold:
-                continue
-            score = self.memory_score(similarity, fact)
-            scores.append((score, similarity, fact))
-        scores.sort(reverse=True, key=lambda item: item[0])
-
-        results = []
-        with self.memory.lock:
+            
+            # [MODIFICATION]: Build index for faster lookup
+            fact_index = {fact["id"]: fact for fact in facts if fact.get("embedding")}
+            
+            for fact in facts:
+                embedding = fact.get("embedding")
+                if not embedding:
+                    logger.warning("Skipping memory without embedding: %s", fact.get("id"))
+                    continue
+                similarity = self.cosine(q_vec, embedding)
+                if similarity < threshold:
+                    continue
+                score = self.memory_score(similarity, fact)
+                scores.append((score, similarity, fact))
+            
+            # [MODIFICATION]: Sort and process results within the same lock context
+            scores.sort(reverse=True, key=lambda item: item[0])
+            
+            results = []
             for score, similarity, fact in scores[:top_k]:
-                for stored in self.memory.data["semantic"]:
-                    if stored["id"] == fact["id"]:
-                        stored["last_used"] = datetime.now().isoformat()
-                        stored["access_count"] = stored.get("access_count", 0) + 1
-                        stored["last_score"] = round(score, 3)
-                        stored["last_similarity"] = round(similarity, 3)
-                        results.append({
-                            "score": score,
-                            "similarity": similarity,
-                            "memory": dict(stored),
-                        })
-                        break
+                fact_id = fact["id"]
+                if fact_id in fact_index:
+                    stored = fact_index[fact_id]
+                    stored["last_used"] = datetime.now().isoformat()
+                    stored["access_count"] = stored.get("access_count", 0) + 1
+                    stored["last_score"] = round(score, 3)
+                    stored["last_similarity"] = round(similarity, 3)
+                    results.append({
+                        "score": score,
+                        "similarity": similarity,
+                        "memory": dict(stored),
+                    })
+            
+            # [FIX]: Only save if we actually modified memories
             if results:
                 self.memory.save()
+        
         return results

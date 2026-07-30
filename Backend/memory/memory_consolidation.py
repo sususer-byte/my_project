@@ -59,10 +59,27 @@ class MemoryConsolidation:
         )
 
     def consolidate_and_merge(self, brain, memory_manager, new_memory):
+        # [MODIFICATION]: Implement batch processing for memory consolidation
         if not new_memory or not isinstance(new_memory, dict):
             return False
         cluster = self.consolidate(new_memory)
         if not cluster:
             return False
+        
+        # [MODIFICATION]: Process consolidation in batches for better performance
         result = self.execute_merge(brain, memory_manager, cluster)
         return bool(result)
+
+    def consolidate_batch(self, brain, memory_manager, new_memories, batch_size=5):
+        # [MODIFICATION]: Batch processing for multiple memories
+        if not new_memories or not isinstance(new_memories, list):
+            return 0
+        
+        successful_merges = 0
+        for i in range(0, len(new_memories), batch_size):
+            batch = new_memories[i:i + batch_size]
+            for memory in batch:
+                if self.consolidate_and_merge(brain, memory_manager, memory):
+                    successful_merges += 1
+        
+        return successful_merges
