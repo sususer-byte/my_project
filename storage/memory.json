@@ -1,0 +1,22 @@
+{
+    "conversation": [
+        {
+            "role": "user",
+            "content": "hello"
+        },
+        {
+            "role": "user",
+            "content": "hello"
+        },
+        {
+            "role": "assistant",
+            "content": "Hey there! It's great to see you! I've got my robotic body all set for a fun conversation. What brings you here today?"
+        },
+        {
+            "role": "user",
+            "content": "hello"
+        }
+    ],
+    "semantic": [],
+    "archived": []
+}

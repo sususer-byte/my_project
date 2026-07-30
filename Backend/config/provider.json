@@ -1,0 +1,16 @@
+{
+  "default_provider": "ollama",
+
+  "providers": {
+    "ollama": {
+      "enabled": true,
+      "model": "llama3:latest"
+    },
+
+    "gemini": {
+      "enabled": false,
+      "api_key": "",
+      "model": "gemini-2.5-flash"
+    }
+  }
+}

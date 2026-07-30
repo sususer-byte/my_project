@@ -1,0 +1,9 @@
+{
+    "happy": 0.98,
+    "angry": 0.01,
+    "sad": 0.01,
+    "curiosity": 0.98,
+    "trust": 0.98,
+    "energy": 0.98,
+    "stress": 0.006
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "timestamp": "2026-07-29T16:16:50.915496",
+    "session_id": "ffee40e6-f4c7-4474-8bb7-5ad82244e47a",
+    "state": {
+      "happy": 0.98,
+      "sad": 0.01,
+      "angry": 0.01,
+      "stress": 0.006,
+      "energy": 0.98,
+      "curiosity": 0.98,
+      "trust": 0.98
+    }
+  }
+]
