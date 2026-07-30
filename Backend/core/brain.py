@@ -17,19 +17,51 @@ from core.decision import (
 
 logger = logging.getLogger("furgal.brain")
 
+# [MODIFICATION]: Add custom exception classes for better error handling
+class BrainValueError(ValueError):
+    """Exception for invalid input or configuration in brain operations"""
+    pass
+
+class BrainRuntimeError(RuntimeError):
+    """Exception for provider execution failures in brain operations"""
+    pass
+
+class BrainProcessingError(Exception):
+    """Exception for unexpected processing errors in brain operations"""
+    pass
+
 
 class Brain:
+    # [MODIFICATION]: Refactor to use interface-based dependency injection
     def __init__(self, provider_manager):
+        # [MODIFICATION]: Use interface contract rather than direct implementation
         self.provider_manager = provider_manager
+        self._validate_provider_manager(provider_manager)
+
+    def _validate_provider_manager(self, provider_manager):
+        # [MODIFICATION]: Validate that provider manager implements required interface
+        required_methods = ['chat', 'chat_json', 'get_fallback_providers', 'set_provider']
+        for method in required_methods:
+            if not hasattr(provider_manager, method):
+                raise ValueError(f"Provider manager missing required method: {method}")
+            if not callable(getattr(provider_manager, method)):
+                raise ValueError(f"Provider manager method {method} is not callable")
 
     def think(self, messages):
+        # [FIX]: Replace generic exception handling with specific exception classes
         try:
             response = self.provider_manager.chat(messages=messages)
             reply = response.content
             return reply
+        except ValueError as ve:
+            logger.error("Brain.think ValueError: %s", ve)
+            raise BrainValueError(f"Invalid input or configuration: {ve}") from ve
+        except RuntimeError as re:
+            logger.error("Brain.think RuntimeError: %s", re)
+            raise BrainRuntimeError(f"Provider execution failed: {re}") from re
         except Exception as exc:
-            logger.error("Brain.think failed: %s", exc)
-            raise
+            logger.error("Brain.think unexpected error: %s", exc)
+            raise BrainProcessingError(f"Unexpected processing error: {exc}") from exc
 
     def _chat_json(self, messages, schema, temperature = 0.1):
         return self.provider_manager.chat_json(messages= messages, schema = schema, options = {"temperature" :temperature, "num_ctx": 4096})

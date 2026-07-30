@@ -122,6 +122,38 @@ def _media_key(params: MediaKeyParams) -> Dict[str, Any]:
         return {"success": False, "error": str(exc)}
 
 
+def _play_audio_file(params: Dict[str, Any]) -> Dict[str, Any]:
+    # [MODIFICATION]: Add audio file playback capability
+    try:
+        import subprocess
+        import platform
+        import os
+        
+        file_path = params.get("file_path", "")
+        if not file_path or not isinstance(file_path, str):
+            return {"success": False, "error": "Invalid file path"}
+        
+        if not os.path.exists(file_path):
+            return {"success": False, "error": f"File not found: {file_path}"}
+        
+        system = platform.system()
+        if system == "Windows":
+            subprocess.Popen(["start", "", file_path], shell=True)
+        elif system == "Darwin":
+            subprocess.Popen(["afplay", file_path])
+        else:
+            subprocess.Popen(["xdg-open", file_path])
+        
+        return {"success": True, "file_path": file_path, "action": "playing"}
+    except Exception as exc:
+        logger.error("play_audio_file failed: %s", exc)
+        return {"success": False, "error": str(exc)}
+
+
+class PlayAudioParams(BaseModel):
+    file_path: str = Field(min_length=1, description="Path to audio file to play")
+
+
 def register_media_tools(registry) -> None:
     #Register media and volume control tools.
     registry.register_tool(
@@ -135,4 +167,11 @@ def register_media_tools(registry) -> None:
         description="Control media playback (play_pause, next, previous, stop)",
         params_model=MediaKeyParams,
         handler=_media_key,
+    )
+    # [MODIFICATION]: Add audio file playback tool
+    registry.register_tool(
+        name="play_audio",
+        description="Play an audio file using system media player",
+        params_model=PlayAudioParams,
+        handler=_play_audio_file,
     )

@@ -77,21 +77,37 @@ class HotkeyParams(BaseModel):
 
 
 def _open_app(params: OpenAppParams) -> Dict[str, Any]:
+    # [MODIFICATION]: Enhanced app opening with better error handling and validation
     name = params.app_name.strip()
     if not _SAFE_APP_RE.fullmatch(name):
         return {"success": False, "error": "App name contains unsafe characters"}
+    
     system = platform.system()
     try:
         if system == "Windows":
-            subprocess.Popen(["cmd", "/c", "start", "", name], shell=False)
+            # [MODIFICATION]: Better Windows app launching
+            if name.endswith('.exe'):
+                subprocess.Popen([name], shell=False)
+            else:
+                subprocess.Popen(["cmd", "/c", "start", "", name], shell=False)
         elif system == "Darwin":
-            subprocess.Popen(["open", "-a", name])
+            # [MODIFICATION]: Enhanced macOS app opening
+            if name.endswith('.app'):
+                subprocess.Popen(["open", name])
+            else:
+                subprocess.Popen(["open", "-a", name])
         else:
-            subprocess.Popen([name], shell=False)
-        return {"success": True, "app_name": name, "action": "opened"}
+            # [MODIFICATION]: Better Linux/Unix app handling
+            try:
+                subprocess.Popen(["xdg-open", name])
+            except FileNotFoundError:
+                subprocess.Popen([name], shell=False)
+        
+        logger.info("Successfully opened app: %s", name)
+        return {"success": True, "app_name": name, "action": "opened", "platform": system}
     except Exception as exc:
         logger.error("open_app failed: %s", exc)
-        return {"success": False, "error": str(exc)}
+        return {"success": False, "error": str(exc), "app_name": name}
 
 
 def _close_app(params: CloseAppParams) -> Dict[str, Any]:
